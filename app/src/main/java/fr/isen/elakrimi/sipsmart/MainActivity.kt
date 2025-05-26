@@ -11,10 +11,11 @@ import fr.isen.elakrimi.sipsmart.components.NavBar
 import fr.isen.elakrimi.sipsmart.components.NavItem
 import fr.isen.elakrimi.sipsmart.connexion.LoginScreen
 import fr.isen.elakrimi.sipsmart.connexion.SignUpScreen
+import fr.isen.elakrimi.sipsmart.screen.HomePage
+import fr.isen.elakrimi.sipsmart.screen.TipsScreen
+import fr.isen.elakrimi.sipsmart.screen.ProfilScreen
 import fr.isen.elakrimi.sipsmart.screen.WelcomeScreen
 import fr.isen.elakrimi.sipsmart.ui.theme.SIPSMARTTheme
-
-
 
 class MainActivity : ComponentActivity() {
 
@@ -32,7 +33,7 @@ class MainActivity : ComponentActivity() {
                 val authState by viewModel.authState.collectAsState()
                 val snackbarHostState = remember { SnackbarHostState() }
 
-                // Auth state listener
+                // Écoute de l'état d'authentification
                 LaunchedEffect(authState) {
                     when (authState) {
                         is FirebaseAuthViewModel.AuthState.Success -> currentScreen = "home"
@@ -43,7 +44,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Snackbar for errors
+                // Affichage du snackbar en cas d'erreur
                 LaunchedEffect(errorMessage) {
                     errorMessage?.let {
                         snackbarHostState.showSnackbar(it)
@@ -81,18 +82,42 @@ class MainActivity : ComponentActivity() {
                             onLoginError = { errorMessage = it }
                         )
 
-                        "home" -> HomePage(
-                            selectedNavItem = selectedNavItem,
-                            onNavItemSelected = { selectedNavItem = it },
-                            onLogout = {
-                                viewModel.signOut()
-                                currentScreen = "welcome"
-                            },
-                            modifier = Modifier.padding(innerPadding)
-                        )
+                        "home" -> {
+                            when (selectedNavItem) {
+                                NavItem.Home -> HomePage(
+                                    viewModel = viewModel,
+                                    onLogout = {
+                                        viewModel.signOut()
+                                        currentScreen = "welcome"
+                                    },
+                                    modifier = Modifier.padding(innerPadding)
+                                )
+                                NavItem.Tips -> TipsScreen(
+                                    viewModel = viewModel,
+                                    onLogout = {
+                                        viewModel.signOut()
+                                        currentScreen = "welcome"
+                                    },
+                                    modifier = Modifier.padding(innerPadding)
+                                )
+                                NavItem.Profile -> {
+
+                                    ProfilScreen(
+                                        viewModel = viewModel,
+                                        onLogout = {
+                                            viewModel.signOut()
+                                            currentScreen = "welcome"
+                                        },
+                                        modifier = Modifier.padding(innerPadding)
+                                    )
+                                }
+                            }
+
+                            }
+                        }
                     }
                 }
             }
         }
     }
-}
+

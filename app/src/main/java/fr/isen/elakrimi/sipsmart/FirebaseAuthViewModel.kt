@@ -5,7 +5,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 
 class FirebaseAuthViewModel : ViewModel() {
 
@@ -13,6 +14,43 @@ class FirebaseAuthViewModel : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState
+
+    private val _hydrationGoal = MutableStateFlow("2.0L") // valeur par défaut
+    val hydrationGoal: StateFlow<String> = _hydrationGoal
+
+    fun updateHydrationGoal(goal: String) {
+        _hydrationGoal.value = goal
+    }
+    fun saveHydrationGoalToFirebase(goal: String, onSuccess: () -> Unit = {}, onFailure: (Exception) -> Unit = {}) {
+        val user = auth.currentUser
+        if (user != null) {
+            val db = Firebase.firestore
+            val userDocRef = db.collection("users").document(user.uid)
+
+            userDocRef.set(mapOf("hydrationGoal" to goal))
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { exception -> onFailure(exception) }
+        } else {
+            onFailure(Exception("Utilisateur non connecté"))
+        }
+    }
+
+    fun fetchHydrationGoalFromFirebase() {
+        val user = auth.currentUser
+        if (user != null) {
+            val db = Firebase.firestore
+            db.collection("users").document(user.uid)
+                .get()
+                .addOnSuccessListener { document ->
+                    val goal = document.getString("hydrationGoal") ?: "2000 ml"
+                    _hydrationGoal.value = goal
+                }
+                .addOnFailureListener {
+                    _hydrationGoal.value = "2000 ml" // valeur par défaut
+                }
+
+        }
+    }
 
     fun signUp(email: String, password: String, fullName: String) {
         _authState.value = AuthState.Loading
@@ -55,7 +93,9 @@ class FirebaseAuthViewModel : ViewModel() {
         FirebaseAuth.getInstance().signOut()
         _authState.value = AuthState.Unauthenticated
     }
-
+    fun sendPasswordResetEmail(email: String) {
+        FirebaseAuth.getInstance().sendPasswordResetEmail(email)
+    }
     sealed class AuthState {
         object Idle : AuthState()
         object Loading : AuthState()
@@ -64,3 +104,5 @@ class FirebaseAuthViewModel : ViewModel() {
         data class Error(val errorMessage: String) : AuthState()
     }
 }
+
+
