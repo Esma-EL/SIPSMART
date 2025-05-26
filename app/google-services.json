@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "4199280189",
+    "firebase_url": "https://sipsmart-5c682-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "sipsmart-5c682",
+    "storage_bucket": "sipsmart-5c682.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:4199280189:android:f674cc5c37d94e9ffb4454",
+        "android_client_info": {
+          "package_name": "fr.isen.elakrimi.sipsmart"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4fmYzZ8TTKrzrWrwQLq_ZUI7DigNoOy4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
