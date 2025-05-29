@@ -7,15 +7,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import fr.isen.elakrimi.sipsmart.components.NavBar
-import fr.isen.elakrimi.sipsmart.components.NavItem
+import androidx.navigation.compose.rememberNavController
 import fr.isen.elakrimi.sipsmart.connexion.LoginScreen
 import fr.isen.elakrimi.sipsmart.connexion.SignUpScreen
 import fr.isen.elakrimi.sipsmart.screen.HomePage
-import fr.isen.elakrimi.sipsmart.screen.TipsScreen
-import fr.isen.elakrimi.sipsmart.screen.ProfilScreen
 import fr.isen.elakrimi.sipsmart.screen.WelcomeScreen
 import fr.isen.elakrimi.sipsmart.ui.theme.SIPSMARTTheme
+import fr.isen.elakrimi.sipsmart.components.NavItem
+import fr.isen.elakrimi.sipsmart.components.NavBar
+import fr.isen.elakrimi.sipsmart.screen.ProfilScreen
+import fr.isen.elakrimi.sipsmart.screen.TipsScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -25,6 +26,8 @@ class MainActivity : ComponentActivity() {
         val viewModel = FirebaseAuthViewModel()
 
         setContent {
+            val navController = rememberNavController()
+
             SIPSMARTTheme {
 
                 var currentScreen by remember { mutableStateOf("welcome") }
@@ -33,7 +36,15 @@ class MainActivity : ComponentActivity() {
                 val authState by viewModel.authState.collectAsState()
                 val snackbarHostState = remember { SnackbarHostState() }
 
-                // Écoute de l'état d'authentification
+                // Gestion des erreurs via snackbar
+                LaunchedEffect(errorMessage) {
+                    errorMessage?.let {
+                        snackbarHostState.showSnackbar(it)
+                        errorMessage = null
+                    }
+                }
+
+                // Changement automatique d'écran après authentification réussie
                 LaunchedEffect(authState) {
                     when (authState) {
                         is FirebaseAuthViewModel.AuthState.Success -> currentScreen = "home"
@@ -41,14 +52,6 @@ class MainActivity : ComponentActivity() {
                             errorMessage = (authState as FirebaseAuthViewModel.AuthState.Error).errorMessage
                         }
                         else -> Unit
-                    }
-                }
-
-                // Affichage du snackbar en cas d'erreur
-                LaunchedEffect(errorMessage) {
-                    errorMessage?.let {
-                        snackbarHostState.showSnackbar(it)
-                        errorMessage = null
                     }
                 }
 
@@ -73,13 +76,15 @@ class MainActivity : ComponentActivity() {
                         "signup" -> SignUpScreen(
                             viewModel = viewModel,
                             onAlreadyHaveAccountClick = { currentScreen = "login" },
-                            onSignUpError = { errorMessage = it }
+                            onSignUpError = { errorMessage = it },
+                            navController = navController
                         )
 
                         "login" -> LoginScreen(
                             viewModel = viewModel,
                             onSignUpClick = { currentScreen = "signup" },
-                            onLoginError = { errorMessage = it }
+                            onLoginError = { errorMessage = it },
+                            navController = navController
                         )
 
                         "home" -> {
@@ -90,6 +95,10 @@ class MainActivity : ComponentActivity() {
                                         viewModel.signOut()
                                         currentScreen = "welcome"
                                     },
+                                    onConnectClick = {
+                                        // Gérer ici la connexion Bluetooth par exemple
+                                    },
+                                    navController = navController,
                                     modifier = Modifier.padding(innerPadding)
                                 )
                                 NavItem.Tips -> TipsScreen(
@@ -100,19 +109,14 @@ class MainActivity : ComponentActivity() {
                                     },
                                     modifier = Modifier.padding(innerPadding)
                                 )
-                                NavItem.Profile -> {
-
-                                    ProfilScreen(
-                                        viewModel = viewModel,
-                                        onLogout = {
-                                            viewModel.signOut()
-                                            currentScreen = "welcome"
-                                        },
-                                        modifier = Modifier.padding(innerPadding)
-                                    )
-                                }
-                            }
-
+                                NavItem.Profile -> ProfilScreen(
+                                    viewModel = viewModel,
+                                    onLogout = {
+                                        viewModel.signOut()
+                                        currentScreen = "welcome"
+                                    },
+                                    modifier = Modifier.padding(innerPadding)
+                                )
                             }
                         }
                     }
@@ -120,4 +124,4 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
+}

@@ -28,11 +28,11 @@
         android:theme="@style/Theme.SIPSMART"
         tools:targetApi="31">
         <activity
-            android:name=".BluetoothControlActivity"
+            android:name=".activity.BluetoothControlActivity"
             android:exported="false"
             android:theme="@style/Theme.SIPSMART" />
         <activity
-            android:name=".ScanActivity"
+            android:name=".activity.ScanActivity"
             android:exported="false"
             android:theme="@style/Theme.SIPSMART" />
         <activity

@@ -19,13 +19,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import fr.isen.elakrimi.sipsmart.FirebaseAuthViewModel
 import fr.isen.elakrimi.sipsmart.R  // N’oublie pas d’importer ton R
+import androidx.navigation.NavHostController
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
     viewModel: FirebaseAuthViewModel,
     onSignUpClick: () -> Unit,
-    onLoginError: (String) -> Unit
+    onLoginError: (String) -> Unit,
+    navController: NavHostController
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }

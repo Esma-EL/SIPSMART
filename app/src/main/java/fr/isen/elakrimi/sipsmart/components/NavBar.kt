@@ -4,7 +4,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -29,13 +28,13 @@ fun NavBar(
 ) {
     Surface(
         color = Color(0xFFF98E8E), // Couleur rose
-        shadowElevation = 4.dp
+        shadowElevation = 2.dp
     ) {
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .height(60.dp)
-                .padding(horizontal = 30.dp),
+                .height(50.dp)
+                .padding(horizontal = 10.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -45,9 +44,9 @@ fun NavBar(
                     contentDescription = item.label,
                     tint = if (item == selectedItem) Color.White else Color(0xFFEEEEEE),
                     modifier = Modifier
-                        .size(35.dp)
+                        .size(33.dp)
                         .clickable { onItemSelected(item) }
-                        .padding(horizontal = 1.dp)
+                        .padding(horizontal = 5.dp)
                 )
 
                 // Trait entre les icônes, sauf après la dernière
@@ -55,8 +54,8 @@ fun NavBar(
                     Divider(
                         color = Color.White.copy(alpha = 0.5f),
                         modifier = Modifier
-                            .height(35.dp)
-                            .width(2.dp)
+                            .height(30.dp)
+                            .width(1.dp)
                     )
                 }
             }

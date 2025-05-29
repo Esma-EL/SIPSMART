@@ -19,13 +19,16 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
 import fr.isen.elakrimi.sipsmart.R  // N'oublie pas d'importer ton R
+import androidx.navigation.NavHostController
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(
     viewModel: FirebaseAuthViewModel,
     onAlreadyHaveAccountClick: () -> Unit,
-    onSignUpError: (String) -> Unit
+    onSignUpError: (String) -> Unit,
+    navController: NavHostController // Ajouté ici
 ) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
