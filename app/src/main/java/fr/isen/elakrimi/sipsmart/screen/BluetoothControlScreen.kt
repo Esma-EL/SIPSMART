@@ -110,14 +110,14 @@ fun BluetoothControlScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            "Concentration Particules (PM)",
+                            "Température",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
-                            color = Color(0xFFE64A19)
+                            color = Color(0xFFF6F2F2)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "$tmpValue µg/m³",
+                            "$tmpValue °C",
                             fontSize = 32.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
@@ -128,7 +128,7 @@ fun BluetoothControlScreen(
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFCCBC)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF98E8E)),
                     elevation = CardDefaults.cardElevation(4.dp)
                 ) {
                     Column(
@@ -136,14 +136,14 @@ fun BluetoothControlScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            "Concentration CO₂",
+                            "Niveau de liquide",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
-                            color = Color(0xFF512DA8)
+                            color = Color(0xFFFFFFFF)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "$liquidValue ppm",
+                            "$liquidValue %",
                             fontSize = 32.sp,
                             fontWeight = FontWeight.ExtraBold
                         )

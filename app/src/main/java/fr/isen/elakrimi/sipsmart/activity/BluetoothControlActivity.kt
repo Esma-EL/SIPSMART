@@ -15,16 +15,14 @@ import androidx.compose.runtime.mutableStateOf
 import fr.isen.elakrimi.screen.BluetoothControlScreen
 import fr.isen.elakrimi.sipsmart.ui.theme.SIPSMARTTheme
 import java.util.UUID
-
-
+import java.util.Queue
+import java.util.LinkedList
 
 class BluetoothControlActivity: ComponentActivity() {
 
     private var gatt: BluetoothGatt? = null
     private var liquidChar: BluetoothGattCharacteristic? = null
     private var tmpChar: BluetoothGattCharacteristic? = null
-    private var switchChar: BluetoothGattCharacteristic? = null
-    private var switchChar2: BluetoothGattCharacteristic? = null
 
     private val liquidValue = mutableStateOf(0)
     private val tmpValue = mutableStateOf(0)
@@ -35,6 +33,8 @@ class BluetoothControlActivity: ComponentActivity() {
 
     private val CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
+    private val descriptorQueue: Queue<BluetoothGattDescriptor> = LinkedList()
+
     @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,22 +44,20 @@ class BluetoothControlActivity: ComponentActivity() {
         val rssi = intent.getIntExtra("rssi", 0)
 
         setContent {
-            SIPSMARTTheme  {
+            SIPSMARTTheme {
                 BluetoothControlScreen(
                     name = name,
                     address = address,
                     rssi = rssi,
                     connectionStatus = connectionState.value,
                     isConnected = connectionState.value.startsWith("✅"),
-                    liquidValue = liquidValue.value, // <-- Ajout
+                    liquidValue = liquidValue.value,
                     tmpValue = tmpValue.value,
                     isSubscribed = isSubscribed.value,
                     onBack = { finish() },
                     onConnectClick = { connectToDevice(address, name) },
-                    onToggleSubscription = { toggleNotifications(it) } // <-- Ajout
+                    onToggleSubscription = { toggleNotifications(it) }
                 )
-
-
             }
         }
     }
@@ -72,6 +70,7 @@ class BluetoothControlActivity: ComponentActivity() {
         val device = bluetoothAdapter.getRemoteDevice(address)
 
         gatt = device.connectGatt(this, false, object : BluetoothGattCallback() {
+
             override fun onConnectionStateChange(gattParam: BluetoothGatt, status: Int, newState: Int) {
                 runOnUiThread {
                     if (newState == BluetoothGatt.STATE_CONNECTED) {
@@ -84,7 +83,6 @@ class BluetoothControlActivity: ComponentActivity() {
             }
 
             override fun onServicesDiscovered(gattParam: BluetoothGatt, status: Int) {
-
                 gattParam.services.forEach { service ->
                     Log.d("BLE", "Service: ${service.uuid}")
                     service.characteristics.forEach { char ->
@@ -92,25 +90,13 @@ class BluetoothControlActivity: ComponentActivity() {
                     }
                 }
 
-//                val co2ServiceUUID = UUID.fromString("00001234-0000-1000-8000-00805f9b34fb")
-//                val co2CharUUID = UUID.fromString("00005678-0000-1000-8000-00805f9b34fb")
-                //             val pmCharUUID = UUID.fromString("00008765-0000-1000-8000-00805f9b34fb")
-
                 val serviceUUID = UUID.fromString("0000feed-cc7a-482a-984a-7f2ed5b3e58f")
-                val switchCharUUID = UUID.fromString("0000ABCD-8e22-4541-9d4c-21edae82ed19")
-                val switchCharUUID2 = UUID.fromString("00001234-8e22-4541-9d4c-21edae82ed19")
+                val tmpCharUUID = UUID.fromString("00001234-8e22-4541-9d4c-21edae82ed19")
+                val liquidCharUUID = UUID.fromString("0000ABCD-8e22-4541-9d4c-21edae82ed19")
+
                 val service = gattParam.services.find { it.uuid == serviceUUID }
-                switchChar = service?.getCharacteristic(switchCharUUID)
-                switchChar2 = service?.getCharacteristic(switchCharUUID2)
-                Log.d("DEBUG", "switchChar2 = $switchChar2")
-
-                //val service = gattParam.services.find { it.uuid == co2ServiceUUID }
-                //co2Char = service?.getCharacteristic(co2CharUUID)
-                //pmChar = service?.getCharacteristic(pmCharUUID)
-
-                Log.d("BLE", "liquid char = $serviceUUID")
-                Log.d("BLE", "tmp char = $serviceUUID")
-
+                tmpChar = service?.getCharacteristic(tmpCharUUID)
+                liquidChar = service?.getCharacteristic(liquidCharUUID)
 
                 // Active automatiquement les notifications dès que les caractéristiques sont récupérées
                 runOnUiThread {
@@ -118,66 +104,56 @@ class BluetoothControlActivity: ComponentActivity() {
                 }
             }
 
-            override fun onCharacteristicChanged(
-                gatt: BluetoothGatt,
-                characteristic: BluetoothGattCharacteristic
-            ) {
+            override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
                 val raw = characteristic.value
-                val uuid = characteristic.uuid
-                Log.d("BLE", "Notification reçue pour UUID=$uuid, taille=${raw.size}")
-
-
-                // Niveau de liquide (anciennement CO2)
-                if (uuid == UUID.fromString("0000ABCD-8e22-4541-9d4c-21edae82ed19")) {
-                    val liquidLevel = raw[0].toInt() and 0xFF
-
-                    runOnUiThread {
-                        liquidValue.value = liquidLevel
-                    }
-
-                    Log.d("BLE", "🧪 Niveau de liquide = $liquidLevel %")
-                }
-
-                // Température (anciennement PM)
-                // Température (anciennement PM)
-                else if (uuid == UUID.fromString("00001234-8e22-4541-9d4c-21edae82ed19")) {
-                    if (skipNextPMNotification) {
-                        skipNextPMNotification = false
-                        Log.d("BLE", "🔕 Première notif PM ignorée")
-                        return
-                    }
-                    Log.d("TEMP", "✅ Notification température reçue ! UUID=$uuid")
-
-                    val hex = raw.joinToString(" ") { "%02X".format(it) }
-                    Log.d("TEMP", "📦 Donnée brute température : $hex (taille=${raw.size})")
-
-                    if (raw.size >= 2) {
-                        val tempRaw = ((raw[0].toInt() and 0xFF) shl 8) or
-                                (raw[1].toInt() and 0xFF)
-                        val temperature = tempRaw / 100f
-
-                        runOnUiThread {
-                            tmpValue.value = temperature.toInt() // ou .value = temperature si tu préfères un float
-                        }
-
-                        Log.d("TEMP", "🌡️ Température = %.2f °C".format(temperature))
-                    } else {
-                        Log.w("TEMP", "⚠️ Donnée température trop courte !")
-                    }
-                }
-
-                // Log des données brutes
                 val hex = raw.joinToString(" ") { String.format("%02X", it) }
                 Log.d("BLE", "📥 Notification reçue (${raw.size} octets) : $hex")
+
+                when (characteristic.uuid) {
+                    tmpChar?.uuid -> {
+                        val tempRaw = (raw[0].toInt() shl 8) or (raw[1].toInt() and 0xFF)
+                        val tempSigned = if (tempRaw and 0x8000 != 0) tempRaw - 0x10000 else tempRaw
+                        val temperature = tempSigned / 100.0
+                        runOnUiThread { tmpValue.value = temperature.toInt() }
+                    }
+
+                    liquidChar?.uuid -> {
+                        val liquid = (raw[0].toInt() and 0xFF)
+                        runOnUiThread {
+                            liquidValue.value = liquid
+                        }
+
+                        Log.d("BLE", " liquid = $liquid %")
+
+                    }
+
+                    else -> {
+                        Log.w("BLE", "🟡 Caractéristique inconnue: ${characteristic.uuid}")
+                    }
+                }
             }
 
-
+            override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    Log.d("BLE", "✅ Descriptor écrit pour ${descriptor.characteristic.uuid}")
+                } else {
+                    Log.e("BLE", "❌ Échec d’écriture du descriptor pour ${descriptor.characteristic.uuid} - status=$status")
+                }
+                descriptorQueue.poll()
+                writeNextDescriptor()
+            }
         })
     }
 
     @SuppressLint("MissingPermission")
+    override fun onDestroy() {
+        super.onDestroy()
+        gatt?.close()
+    }
+
+    @SuppressLint("MissingPermission")
     private fun toggleNotifications(enable: Boolean) {
-        val characteristics = listOfNotNull(switchChar, switchChar2)
+        val characteristics = listOfNotNull(liquidChar, tmpChar)
 
         characteristics.forEach { char ->
             val success = gatt?.setCharacteristicNotification(char, enable) ?: false
@@ -185,6 +161,12 @@ class BluetoothControlActivity: ComponentActivity() {
                 Log.e("BLE", "❌ Impossible de modifier la notification pour ${char.uuid}")
                 return@forEach
             }
+
+            char.descriptors.forEach {
+                Log.d("BLE", "🧩 ${char.uuid} → descriptor: ${it.uuid}")
+            }
+
+            Log.d("BLE", "🔍 Propriétés de ${char.uuid}: ${char.properties}")
 
             val descriptor = char.getDescriptor(CCCD_UUID)
             if (descriptor == null) {
@@ -198,13 +180,10 @@ class BluetoothControlActivity: ComponentActivity() {
                 BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
             }
 
-            val writeSuccess = gatt?.writeDescriptor(descriptor) ?: false
-            if (!writeSuccess) {
-                Log.e("BLE", "❌ Échec de l'écriture du descriptor pour ${char.uuid}")
-            } else {
-                Log.d("BLE", "🔔 Notifications ${if (enable) "activées" else "désactivées"} pour ${char.uuid}")
-            }
+            descriptorQueue.add(descriptor)
         }
+
+        writeNextDescriptor()
 
         runOnUiThread {
             isSubscribed.value = enable
@@ -216,11 +195,16 @@ class BluetoothControlActivity: ComponentActivity() {
         }
     }
 
-
-
     @SuppressLint("MissingPermission")
-    override fun onDestroy() {
-        super.onDestroy()
-        gatt?.close()
+    private fun writeNextDescriptor() {
+        if (descriptorQueue.isNotEmpty()) {
+            val descriptor = descriptorQueue.peek()
+            val success = gatt?.writeDescriptor(descriptor) ?: false
+            if (!success) {
+                Log.e("BLE", "❌ Échec de l'écriture du descriptor pour ${descriptor.characteristic.uuid}")
+                descriptorQueue.poll() // on enlève pour passer au suivant
+                writeNextDescriptor()
+            }
+        }
     }
 }
