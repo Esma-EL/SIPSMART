@@ -7,6 +7,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.firestore.SetOptions
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+
 
 class FirebaseAuthViewModel : ViewModel() {
 
@@ -17,6 +21,101 @@ class FirebaseAuthViewModel : ViewModel() {
 
     private val _hydrationGoal = MutableStateFlow("2.0L") // valeur par défaut
     val hydrationGoal: StateFlow<String> = _hydrationGoal
+    private val _liquidLevel = MutableStateFlow(0f)  // valeur en float 0f-1f
+    val liquidLevel: StateFlow<Float> = _liquidLevel
+    private val _lastTemperature = MutableStateFlow<Float?>(null)
+    val lastTemperature: StateFlow<Float?> = _lastTemperature
+
+    // ----------------------- Température -----------------------
+
+    fun updateTemperature(newTemp: Int) {
+        _lastTemperature.value = newTemp.toFloat()
+    }
+
+    fun saveLastTemperatureToFirebase(
+        onSuccess: () -> Unit = {},
+        onFailure: (Exception) -> Unit = {}
+    ) {
+        val temp = _lastTemperature.value
+        val user = auth.currentUser
+        if (user != null && temp != null) {
+            val db = Firebase.firestore
+            val userDocRef = db.collection("users").document(user.uid)
+            userDocRef.update("temperature", temp)
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { e -> onFailure(e) }
+        } else {
+            onFailure(Exception("Utilisateur non connecté ou température invalide"))
+        }
+    }
+
+    fun fetchTemperatureFromFirebase() {
+        val user = auth.currentUser
+        if (user != null) {
+            val db = Firebase.firestore
+            db.collection("users").document(user.uid).get()
+                .addOnSuccessListener { document ->
+                    val temp = document.getDouble("temperature")
+                    _lastTemperature.value = temp?.toFloat()
+                }
+                .addOnFailureListener {
+                    _lastTemperature.value = null
+                }
+        }
+    }
+
+
+
+    fun updateLiquidLevel(level: Float) {
+        _liquidLevel.value = level
+    }
+
+    fun saveLiquidLevelToFirebase(rawValue: Int, onSuccess: () -> Unit = {}, onFailure: (Exception) -> Unit = {}) {
+        val user = auth.currentUser
+        if (user != null) {
+            // Conversion du rawValue reçu en un float entre 0 et 1
+            val level = when (rawValue) {
+                in 75..85 -> 1f      // Si la valeur est autour de 80 → 100%
+                in 15..25 -> 0.2f    // Si la valeur est autour de 20 → 20%
+                else -> (rawValue / 100f).coerceIn(0f, 1f)  // fallback avec sécurité
+            }
+
+            val db = Firebase.firestore
+            val userDocRef = db.collection("users").document(user.uid)
+
+            userDocRef.update("liquidLevel", level)
+                .addOnSuccessListener { onSuccess() }
+                .addOnFailureListener { exception ->
+                    userDocRef.set(mapOf("liquidLevel" to level), SetOptions.merge())
+                        .addOnSuccessListener { onSuccess() }
+                        .addOnFailureListener { e -> onFailure(e) }
+                }
+        } else {
+            onFailure(Exception("Utilisateur non connecté"))
+        }
+    }
+
+
+    fun fetchLiquidLevelFromFirebase() {
+        val user = auth.currentUser
+        if (user != null) {
+            val db = Firebase.firestore
+            db.collection("users").document(user.uid)
+                .get()
+                .addOnSuccessListener { document ->
+                    val level = document.getDouble("liquidLevel")?.toFloat() ?: 0f
+                    _liquidLevel.value = level
+                }
+                .addOnFailureListener {
+                    _liquidLevel.value = 0f
+                }
+        }
+    }
+
+
+
+
+
 
     fun updateHydrationGoal(goal: String) {
         _hydrationGoal.value = goal
@@ -34,6 +133,8 @@ class FirebaseAuthViewModel : ViewModel() {
             onFailure(Exception("Utilisateur non connecté"))
         }
     }
+
+
 
     fun fetchHydrationGoalFromFirebase() {
         val user = auth.currentUser

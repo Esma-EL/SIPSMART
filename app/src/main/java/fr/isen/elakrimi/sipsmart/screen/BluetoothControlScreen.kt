@@ -15,6 +15,9 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.RoundedCornerShape
+
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,34 +63,61 @@ fun BluetoothControlScreen(
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Bloc de connexion (visible uniquement si non connecté)
+
+            // Carte de connexion (si non connecté)
             if (!isConnected) {
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD)),
-                    elevation = CardDefaults.cardElevation(4.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF4EDF7)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                    shape = RoundedCornerShape(24.dp)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Nom : $name", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("Adresse : $address", fontSize = 14.sp, color = Color.Gray)
-                        Text("RSSI : $rssi dBm", fontSize = 14.sp, color = Color.Gray)
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            "Nom : $name",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = Color(0xFF5E548E)
+                        )
+                        Text(
+                            "Adresse : $address",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                        Text(
+                            "RSSI : $rssi dBm",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Statut : $connectionStatus", fontWeight = FontWeight.Medium)
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Statut : $connectionStatus",
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF9A79B8)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
                         Button(
-                            enabled = !isConnected,
                             onClick = onConnectClick,
-                            modifier = Modifier.fillMaxWidth()
+                            enabled = !isConnected,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFDAA5E4),
+                                contentColor = Color.White
+                            )
                         ) {
                             Text("Se connecter")
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Checkbox(
                                 checked = isSubscribed,
-                                onCheckedChange = onToggleSubscription
+                                onCheckedChange = onToggleSubscription,
+                                colors = CheckboxDefaults.colors(checkedColor = Color(0xFF9A79B8))
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Recevoir notifications")
@@ -98,62 +128,74 @@ fun BluetoothControlScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // Bloc affichage des données CO2 et PM (visible uniquement si connecté)
+            // Données affichées quand connecté
             if (isConnected) {
+
+                // Température
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFD1C4E9)),
-                    elevation = CardDefaults.cardElevation(4.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE9DEF9)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                    shape = RoundedCornerShape(24.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp).align(Alignment.CenterHorizontally),
+                        modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             "Température",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
-                            color = Color(0xFFF6F2F2)
+                            color = Color(0xFF5E548E)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             "$tmpValue °C",
                             fontSize = 32.sp,
-                            fontWeight = FontWeight.ExtraBold
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF3C3C3C)
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Niveau de liquide
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF98E8E)),
-                    elevation = CardDefaults.cardElevation(4.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFFFD8D8)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                    shape = RoundedCornerShape(24.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp).align(Alignment.CenterHorizontally),
+                        modifier = Modifier.padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             "Niveau de liquide",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
-                            color = Color(0xFFFFFFFF)
+                            color = Color(0xFFB04B4B)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             "$liquidValue %",
                             fontSize = 32.sp,
-                            fontWeight = FontWeight.ExtraBold
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF3C3C3C)
                         )
                     }
                 }
-
             }
         }
+
     }
-}
+    }
+
 
 // Fonction pour mémoriser l'historique des valeurs
 @Composable

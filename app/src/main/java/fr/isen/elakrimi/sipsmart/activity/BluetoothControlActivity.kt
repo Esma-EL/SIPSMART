@@ -17,6 +17,11 @@ import fr.isen.elakrimi.sipsmart.ui.theme.SIPSMARTTheme
 import java.util.UUID
 import java.util.Queue
 import java.util.LinkedList
+import fr.isen.elakrimi.sipsmart.FirebaseAuthViewModel
+import androidx.activity.viewModels
+
+
+
 
 class BluetoothControlActivity: ComponentActivity() {
 
@@ -30,6 +35,10 @@ class BluetoothControlActivity: ComponentActivity() {
     private val isSubscribed = mutableStateOf(false)
     private var skipNextCO2Notification = false
     private var skipNextPMNotification = false
+
+    private val viewModel: FirebaseAuthViewModel by viewModels()
+
+
 
     private val CCCD_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
@@ -114,13 +123,22 @@ class BluetoothControlActivity: ComponentActivity() {
                         val tempRaw = (raw[0].toInt() shl 8) or (raw[1].toInt() and 0xFF)
                         val tempSigned = if (tempRaw and 0x8000 != 0) tempRaw - 0x10000 else tempRaw
                         val temperature = tempSigned / 100.0
-                        runOnUiThread { tmpValue.value = temperature.toInt() }
+                        val tempInt = temperature.toInt()
+                        runOnUiThread {
+                            tmpValue.value = tempInt
+                            viewModel.updateTemperature(tempInt) // met à jour la valeur interne
+                            viewModel.saveLastTemperatureToFirebase() // sauvegarde dans Firestore
+                        }
                     }
 
                     liquidChar?.uuid -> {
                         val liquid = (raw[0].toInt() and 0xFF)
                         runOnUiThread {
+
                             liquidValue.value = liquid
+                            viewModel.updateLiquidLevel(liquid.toFloat())
+                            viewModel.saveLiquidLevelToFirebase(liquid.toInt())
+
                         }
 
                         Log.d("BLE", " liquid = $liquid %")
@@ -206,5 +224,8 @@ class BluetoothControlActivity: ComponentActivity() {
                 writeNextDescriptor()
             }
         }
+
+
+
     }
 }

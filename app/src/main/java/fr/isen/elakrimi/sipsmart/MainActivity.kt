@@ -22,8 +22,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         val viewModel = FirebaseAuthViewModel()
+
+        // Récupérer la valeur passée dans l'intent (ex : depuis ScanActivity)
+        val liquidLevelFromIntent = intent?.getFloatExtra("liquid_level", 0f) ?: 0f
+        viewModel.updateLiquidLevel(liquidLevelFromIntent)
+
 
         setContent {
             val navController = rememberNavController()

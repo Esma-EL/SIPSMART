@@ -7,8 +7,7 @@ import android.location.LocationManager
 import androidx.appcompat.app.AlertDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Logout
+import androidx.compose.foundation.Canvas
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +23,17 @@ import fr.isen.elakrimi.sipsmart.FirebaseAuthViewModel
 import fr.isen.elakrimi.sipsmart.R
 import fr.isen.elakrimi.sipsmart.activity.ScanActivity
 import androidx.navigation.NavController
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.StrokeCap
+
+
 
 @Composable
 fun HomePage(
@@ -37,6 +47,15 @@ fun HomePage(
     val backgroundColor = Color(0xFFF98E8E)
     val whiteColor = Color.White
 
+
+    // Charger le niveau liquide depuis Firebase au démarrage de la composable
+    LaunchedEffect(Unit) {
+        if (viewModel.authState.value is FirebaseAuthViewModel.AuthState.Success) {
+            println("User connecté, on récupère les données")
+            viewModel.fetchTemperatureFromFirebase()
+            viewModel.fetchLiquidLevelFromFirebase()
+        }
+    }
     Surface(
         modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -71,7 +90,7 @@ fun HomePage(
                     }
                 }
 
-                IconButton(
+               /* IconButton(
                     onClick = {
                         viewModel.saveHydrationGoalToFirebase(
                             goal = viewModel.hydrationGoal.value,
@@ -92,7 +111,7 @@ fun HomePage(
                         contentDescription = "Déconnexion",
                         tint = whiteColor
                     )
-                }
+                }*/
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -117,7 +136,8 @@ fun HomePageContent(
     val context = LocalContext.current
     val hydrationGoal by viewModel.hydrationGoal.collectAsState()
     val montserratFontFamily = FontFamily(Font(R.font.montserrat_bold, FontWeight.W200))
-
+    val liquidLevel by viewModel.liquidLevel.collectAsState(initial = 0f)
+    val temperature by viewModel.lastTemperature.collectAsState()
     Column(
         modifier
             .fillMaxSize()
@@ -126,7 +146,7 @@ fun HomePageContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Objectif d’hydratation 💧 : $hydrationGoal",
+            text = "Niveau de la gourde ",
             fontFamily = montserratFontFamily,
             fontWeight = FontWeight.ExtraBold,
             fontSize = 24.sp,
@@ -134,9 +154,9 @@ fun HomePageContent(
             modifier = Modifier.padding(bottom = 30.dp)
         )
 
-        CircularHydrationProgress(progress = 0.6f)
-        Thermometer(temperature = 32f)
-
+        CircularHydrationProgress(progress = liquidLevel.coerceIn(0f, 1f))
+        Thermometer(temperature = temperature ?: 0f)
+        Spacer(modifier = Modifier.height(10.dp)) // ← ajoute un espace de 10dp ici
         Button(
             onClick = {
                 val bluetoothManager =
@@ -180,7 +200,7 @@ fun HomePageContent(
             Text(
                 text = "Trouver ma gourde",
                 color = Color.White,
-                fontSize = 15.sp,
+                fontSize = 19.sp,
                 fontWeight = FontWeight.Black
             )
         }
@@ -199,14 +219,47 @@ fun showAlert(context: Context, title: String, message: String) {
 fun CircularHydrationProgress(progress: Float, modifier: Modifier = Modifier) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = modifier.size(150.dp)
+        modifier = modifier.size(130.dp)
     ) {
-        CircularProgressIndicator(
-            progress = progress,
-            strokeWidth = 30.dp,
-            modifier = Modifier.fillMaxSize(),
-            color = Color(0xFFF98E8E)
-        )
+        // Cercle de fond (ombre pour l'effet 3D)
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth = 50.dp.toPx()
+            val radius = size.minDimension / 2 - strokeWidth / 2
+            val center = Offset(size.width / 2, size.height / 2)
+
+            // Ombre décalée pour simuler la profondeur
+            drawArc(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color(0xFFB66E6E), Color.Transparent),
+                    center = center + Offset(10f, 10f), // décalage ombre
+                    radius = radius
+                ),
+                startAngle = 0f,
+                sweepAngle = 360f,
+                useCenter = false,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
+        }
+
+        // Cercle principal avec dégradé pour effet 3D
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokeWidth =20.dp.toPx()
+            val radius = size.minDimension / 2 - strokeWidth / 2
+            val center = Offset(size.width / 2, size.height / 2)
+
+            drawArc(
+                brush = Brush.linearGradient(
+                    colors = listOf(Color(0xFFF98E8E), Color(0xFFC25A5A)),
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, size.height)
+                ),
+                startAngle = -90f,
+                sweepAngle = 360f * progress,
+                useCenter = false,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
+        }
+
         Text(
             text = "${(progress * 100).toInt()}%",
             style = MaterialTheme.typography.headlineMedium,
@@ -215,30 +268,83 @@ fun CircularHydrationProgress(progress: Float, modifier: Modifier = Modifier) {
     }
 }
 
+
 @Composable
-fun Thermometer(temperature: Float, maxTemperature: Float = 50f, modifier: Modifier = Modifier) {
+fun Thermometer(
+    temperature: Float,
+    maxTemperature: Float = 50f,
+    modifier: Modifier = Modifier
+) {
     val fillRatio = (temperature / maxTemperature).coerceIn(0f, 1f)
 
-    Box(
-        modifier = modifier
-            .width(40.dp)
-            .height(150.dp)
-            .background(Color.LightGray, shape = MaterialTheme.shapes.small)
+    Column(
+        modifier = modifier.width(80.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(fillRatio)
-                .align(Alignment.BottomCenter)
-                .background(Color(0xFFF98E8E), shape = MaterialTheme.shapes.small)
-        )
+        // Affichage de la température en haut
         Text(
             text = "${temperature.toInt()}°C",
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 4.dp),
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.Black
+            color = Color.Black,
+            modifier = Modifier.padding(bottom = 10.dp)
         )
+
+        // Canvas pour dessiner le thermomètre
+        Box(
+            modifier = Modifier
+                .height(160.dp)
+                .width(60.dp)
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val width = size.width
+                val height = size.height
+
+                // Dimensions de la tige du thermomètre (rectangle arrondi)
+                val tubeWidth = width * 0.3f
+                val tubeLeft = (width - tubeWidth) / 2f
+                val tubeTop = 0f
+                val tubeBottom = height * 0.95f
+
+                // Dessiner la tige extérieure (contour)
+                drawRoundRect(
+                    color = Color.LightGray,
+                    topLeft = Offset(tubeLeft, tubeTop),
+                    size = androidx.compose.ui.geometry.Size(tubeWidth, tubeBottom),
+                    cornerRadius = CornerRadius(tubeWidth / 2, tubeWidth / 2),
+                    style = Stroke(width = 9f)
+                )
+
+                // Dessiner le liquide dans la tige (rempli du bas vers le haut)
+                val fillHeight = tubeBottom * fillRatio
+                drawRoundRect(
+                    color = Color(0xFFF98E8E),
+                    topLeft = Offset(tubeLeft, tubeBottom - fillHeight),
+                    size = androidx.compose.ui.geometry.Size(tubeWidth, fillHeight),
+                    cornerRadius = CornerRadius(tubeWidth / 2, tubeWidth / 2),
+                    style = Fill
+                )
+
+                // Dessiner le bulbe (rond en bas)
+                val bulbRadius = width * 0.35f
+                val bulbCenter = Offset(width / 2f, tubeBottom + bulbRadius / 2)
+
+                // Contour du bulbe
+                drawCircle(
+                    color = Color.LightGray,
+                    radius = bulbRadius,
+                    center = bulbCenter,
+                    style = Stroke(width = 9f)
+                )
+
+                // Liquide dans le bulbe (plein si température > 0)
+                if (temperature > 0f) {
+                    drawCircle(
+                        color = Color(0xFFF98E8E),
+                        radius = bulbRadius - 4f,
+                        center = bulbCenter
+                    )
+                }
+            }
+        }
     }
 }
