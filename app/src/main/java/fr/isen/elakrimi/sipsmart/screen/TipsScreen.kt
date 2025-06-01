@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import fr.isen.elakrimi.sipsmart.FirebaseAuthViewModel
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @Composable
 fun TipsScreen(
@@ -77,18 +79,45 @@ fun TipsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Conseils pour bien s’hydrater 💧",
+                    text = "Conseils pour bien s’hydrater",
                     style = MaterialTheme.typography.headlineMedium
                 )
-                Text("• Bois au moins 1.5L d'eau par jour.")
-                Text("• Prends ta gourde partout avec toi.")
-                Text("• N’attends pas d’avoir soif pour boire.")
-                Text("• Alterne eau et boissons non sucrées.")
-                // Tu peux ajouter d’autres conseils ici
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text("Quantité recommandée", style = MaterialTheme.typography.titleMedium)
+                Text("• Bois entre 1.5L et 2L d’eau par jour.")
+                Text("• Augmente ta consommation si tu fais du sport ou s’il fait chaud.")
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text("Fréquence", style = MaterialTheme.typography.titleMedium)
+                Text("• Bois régulièrement tout au long de la journée.")
+                Text("• N’attends pas d’avoir soif : la sensation arrive tard.")
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text("Astuces pratiques", style = MaterialTheme.typography.titleMedium)
+                Text("• Garde ta gourde connectée à portée de main.")
+                Text("• Commence ta journée avec un verre d’eau.")
+                Text("• Utilise l’application pour suivre ton niveau et ta température en temps réel.")
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text("Alimentation", style = MaterialTheme.typography.titleMedium)
+                Text("• Complète ton hydratation avec des aliments riches en eau : pastèque, concombres, oranges.")
+                Text("• Privilégie les boissons non sucrées.")
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text("Environnement", style = MaterialTheme.typography.titleMedium)
+                Text("• En cas de forte chaleur, pense à boire plus souvent.")
+                Text("• Adapte ta consommation en fonction de ton environnement et de ton activité.")
             }
         }
     }

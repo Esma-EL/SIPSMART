@@ -14,8 +14,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.navigation.NavController
 import fr.isen.elakrimi.sipsmart.FirebaseAuthViewModel
+import androidx.compose.material.icons.filled.ArrowBack
+import fr.isen.elakrimi.sipsmart.R
+import androidx.compose.foundation.shape.RoundedCornerShape
+
 
 data class BLEDevice(val name: String, val address: String, val rssi: Int)
 
@@ -34,22 +42,10 @@ fun ScanScreen(
     onLogout: () -> Unit,
     navController: NavController
 ) {
-
     val backgroundColor = Color(0xFFF98E8E)
     val whiteColor = Color.White
     val authState = viewModel.authState.collectAsState()
     Text("AuthState: ${authState.value}")
-
-
-
-    val userName = authState.value.let { state ->
-        when(state) {
-            is FirebaseAuthViewModel.AuthState.Success -> state.user?.displayName ?: "Utilisateur"
-            else -> "Utilisateur"
-        }
-    }
-
-    println("User name in ScanScreen: $userName")
 
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -57,48 +53,29 @@ fun ScanScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
+            // Top bar rose avec texte blanc et bouton logout
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(backgroundColor)
-                    .padding(20.dp),
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                authState.value.let { state ->
-                    when (state) {
-                        is FirebaseAuthViewModel.AuthState.Success -> {
-                            Text(
-                                text = "Bienvenue, ${state.user?.displayName ?: "Utilisateur"} !",
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = whiteColor
-                            )
-                        }
-                        else -> {
-                            Text(
-                                "Utilisateur non connecté",
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = whiteColor
-                            )
-                        }
-                    }
-                }
-
                 IconButton(
-                    onClick = {
-                        viewModel.signOut()
-                        onLogout()
-                    },
+                    onClick = { onBack() },
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Logout,
-                        contentDescription = "Déconnexion",
+                        imageVector = Icons.Default.ArrowBack,
+                        contentDescription = "Retour",
                         tint = whiteColor
                     )
                 }
-            }
 
+
+
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -106,29 +83,29 @@ fun ScanScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(60.dp),
+                    .padding(100.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Button(
-                    onClick = { if (isScanning) onStopScan() else onStartScan() },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF98E8E),
-                        contentColor = Color.White
-                    )
+                // Nouveau bouton image-only
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFF98E8E))
+                        .clickable {
+                            if (isScanning) onStopScan() else onStartScan()
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(if (isScanning) "Arrêter le scan" else "Démarrer le scan")
+                    val iconRes = if (isScanning) R.drawable.ic_stop else R.drawable.ic_start
+                    Image(
+                        painter = painterResource(id = iconRes),
+                        contentDescription = if (isScanning) "Stop Scan" else "Start Scan",
+                        modifier = Modifier.size(199.dp)
+                    )
                 }
 
-
-                Spacer(modifier = Modifier.height(30.dp))
-
-                Text(text = if (isScanning) "Scan en cours... ($remainingTime s restantes)" else "Scan arrêté")
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-
-
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -142,29 +119,56 @@ fun ScanScreen(
         }
     }
 }
+fun calculateSignalStrength(rssi: Int): Float {
+    return when {
+        rssi >= -50 -> 1f
+        rssi <= -100 -> 0f
+        else -> (rssi + 100) / 50f
+    }
+}
 
 @Composable
 fun BLEDeviceItem(device: BLEDevice, onClick: () -> Unit) {
     Card(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxWidth() // étire sur toute la largeur dispo
+            .padding(horizontal = 8.dp, vertical = 6.dp) // marge légère
+            .height(70.dp)
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF98E8E))
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp, vertical = 10.dp), // espace à l’intérieur
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = device.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White
+                )
+                Text(
+                    text = device.address,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+            }
+
             Text(
-                text = "${device.name} (${device.rssi} dB)",
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = device.address,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                text = "${device.rssi} dB",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White
             )
         }
     }
 }
+
+
+

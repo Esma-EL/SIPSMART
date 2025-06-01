@@ -32,6 +32,10 @@ import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+
 
 
 
@@ -48,12 +52,26 @@ fun HomePage(
     val whiteColor = Color.White
 
 
-    // Charger le niveau liquide depuis Firebase au démarrage de la composable
-    LaunchedEffect(Unit) {
-        if (viewModel.authState.value is FirebaseAuthViewModel.AuthState.Success) {
-            println("User connecté, on récupère les données")
-            viewModel.fetchTemperatureFromFirebase()
-            viewModel.fetchLiquidLevelFromFirebase()
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (viewModel.authState.value is FirebaseAuthViewModel.AuthState.Success) {
+                    println("🔁 Rafraîchissement des données HomePage")
+                    viewModel.fetchTemperatureFromFirebase()
+                    viewModel.fetchLiquidLevelFromFirebase()
+                    viewModel.fetchLastFiveMeasurements()
+                }
+            }
+        }
+
+        val lifecycle = lifecycleOwner.lifecycle
+        lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycle.removeObserver(observer)
         }
     }
     Surface(
@@ -90,28 +108,28 @@ fun HomePage(
                     }
                 }
 
-               /* IconButton(
-                    onClick = {
-                        viewModel.saveHydrationGoalToFirebase(
-                            goal = viewModel.hydrationGoal.value,
-                            onSuccess = {
-                                viewModel.signOut()
-                                onLogout()
-                            },
-                            onFailure = {
-                                viewModel.signOut()
-                                onLogout()
-                            }
-                        )
-                    },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Logout,
-                        contentDescription = "Déconnexion",
-                        tint = whiteColor
-                    )
-                }*/
+                /* IconButton(
+                     onClick = {
+                         viewModel.saveHydrationGoalToFirebase(
+                             goal = viewModel.hydrationGoal.value,
+                             onSuccess = {
+                                 viewModel.signOut()
+                                 onLogout()
+                             },
+                             onFailure = {
+                                 viewModel.signOut()
+                                 onLogout()
+                             }
+                         )
+                     },
+                     modifier = Modifier.size(48.dp)
+                 ) {
+                     Icon(
+                         imageVector = Icons.Filled.Logout,
+                         contentDescription = "Déconnexion",
+                         tint = whiteColor
+                     )
+                 }*/
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -146,10 +164,9 @@ fun HomePageContent(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Niveau de la gourde ",
-            fontFamily = montserratFontFamily,
-            fontWeight = FontWeight.ExtraBold,
-            fontSize = 24.sp,
+            text = "Statut de ta gourde",
+            fontWeight = FontWeight.Bold,
+            fontSize = 25.sp,
             color = Color.Black,
             modifier = Modifier.padding(bottom = 30.dp)
         )

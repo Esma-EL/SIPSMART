@@ -10,6 +10,7 @@ import com.google.firebase.ktx.Firebase
 import com.google.firebase.firestore.SetOptions
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
+import android.util.Log
 
 
 class FirebaseAuthViewModel : ViewModel() {
@@ -25,11 +26,63 @@ class FirebaseAuthViewModel : ViewModel() {
     val liquidLevel: StateFlow<Float> = _liquidLevel
     private val _lastTemperature = MutableStateFlow<Float?>(null)
     val lastTemperature: StateFlow<Float?> = _lastTemperature
+    private val _temperatureHistory = MutableStateFlow<List<Float>>(emptyList())
+    val temperatureHistory: StateFlow<List<Float>> = _temperatureHistory
+
+    private val _liquidLevelHistory = MutableStateFlow<List<Float>>(emptyList())
+    val liquidLevelHistory: StateFlow<List<Float>> = _liquidLevelHistory
+
+    fun saveMeasurementToHistory(temperature: Float?, liquidLevel: Float?) {
+        val user = auth.currentUser
+        if (user != null) {
+            val db = Firebase.firestore
+            val data = hashMapOf<String, Any>(
+                "timestamp" to com.google.firebase.Timestamp.now()
+            )
+            temperature?.let { data["temperature"] = it }
+            liquidLevel?.let { data["liquidLevel"] = it * 100 } // si c'était un ratio genre 0.2f
+
+            db.collection("users")
+                .document(user.uid)
+                .collection("measurements")
+                .add(data)
+        }
+    }
+
+    fun fetchLastFiveMeasurements() {
+        val user = auth.currentUser ?: return
+        val db = Firebase.firestore
+        db.collection("users").document(user.uid).collection("measurements")
+            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(5)
+            .get()
+            .addOnSuccessListener { snapshots ->
+                val temps = mutableListOf<Float>()
+                val liquids = mutableListOf<Float>()
+                for (doc in snapshots.documents) {
+                    val temp = doc.getDouble("temperature")?.toFloat()
+                    val liquid = doc.getDouble("liquidLevel")?.toFloat()
+                    temp?.let { temps.add(it) }
+                    liquid?.let { liquids.add(it) }
+                    Log.d("Firebase", "Mesures récupérées: temp=$temps, liquid=$liquids")
+
+                }
+                _temperatureHistory.value = temps.reversed() // ordre chronologique
+                _liquidLevelHistory.value = liquids.reversed()
+            }
+            .addOnFailureListener {
+                _temperatureHistory.value = emptyList()
+                _liquidLevelHistory.value = emptyList()
+            }
+
+
+    }
 
     // ----------------------- Température -----------------------
 
     fun updateTemperature(newTemp: Int) {
         _lastTemperature.value = newTemp.toFloat()
+
     }
 
     fun saveLastTemperatureToFirebase(
@@ -114,45 +167,6 @@ class FirebaseAuthViewModel : ViewModel() {
 
 
 
-
-
-
-    fun updateHydrationGoal(goal: String) {
-        _hydrationGoal.value = goal
-    }
-    fun saveHydrationGoalToFirebase(goal: String, onSuccess: () -> Unit = {}, onFailure: (Exception) -> Unit = {}) {
-        val user = auth.currentUser
-        if (user != null) {
-            val db = Firebase.firestore
-            val userDocRef = db.collection("users").document(user.uid)
-
-            userDocRef.set(mapOf("hydrationGoal" to goal))
-                .addOnSuccessListener { onSuccess() }
-                .addOnFailureListener { exception -> onFailure(exception) }
-        } else {
-            onFailure(Exception("Utilisateur non connecté"))
-        }
-    }
-
-
-
-    fun fetchHydrationGoalFromFirebase() {
-        val user = auth.currentUser
-        if (user != null) {
-            val db = Firebase.firestore
-            db.collection("users").document(user.uid)
-                .get()
-                .addOnSuccessListener { document ->
-                    val goal = document.getString("hydrationGoal") ?: "2000 ml"
-                    _hydrationGoal.value = goal
-                }
-                .addOnFailureListener {
-                    _hydrationGoal.value = "2000 ml" // valeur par défaut
-                }
-
-        }
-    }
-
     fun signUp(email: String, password: String, fullName: String) {
         _authState.value = AuthState.Loading
 
@@ -205,5 +219,4 @@ class FirebaseAuthViewModel : ViewModel() {
         data class Error(val errorMessage: String) : AuthState()
     }
 }
-
 

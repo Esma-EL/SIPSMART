@@ -19,6 +19,10 @@ import java.util.Queue
 import java.util.LinkedList
 import fr.isen.elakrimi.sipsmart.FirebaseAuthViewModel
 import androidx.activity.viewModels
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
+import androidx.core.app.NotificationCompat
 
 
 
@@ -35,8 +39,10 @@ class BluetoothControlActivity: ComponentActivity() {
     private val isSubscribed = mutableStateOf(false)
     private var skipNextCO2Notification = false
     private var skipNextPMNotification = false
-
+    private var latestTemperature: Float? = null
+    private var latestLiquidLevel: Float? = null
     private val viewModel: FirebaseAuthViewModel by viewModels()
+
 
 
 
@@ -46,6 +52,10 @@ class BluetoothControlActivity: ComponentActivity() {
 
     @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+        }
+
         super.onCreate(savedInstanceState)
 
         val name = intent.getStringExtra("name") ?: "Appareil inconnu"
@@ -124,33 +134,52 @@ class BluetoothControlActivity: ComponentActivity() {
                         val tempSigned = if (tempRaw and 0x8000 != 0) tempRaw - 0x10000 else tempRaw
                         val temperature = tempSigned / 100.0
                         val tempInt = temperature.toInt()
+
                         runOnUiThread {
+                            val temperatureToSave = tempInt.toFloat()
                             tmpValue.value = tempInt
-                            viewModel.updateTemperature(tempInt) // met à jour la valeur interne
-                            viewModel.saveLastTemperatureToFirebase() // sauvegarde dans Firestore
+                            viewModel.updateTemperature(tempInt)
+                            viewModel.saveLastTemperatureToFirebase()
+                            latestTemperature = temperatureToSave
+
+                            // ✅ Enregistrement groupé uniquement quand les deux sont dispo
+                            if (latestLiquidLevel != null) {
+                                viewModel.saveMeasurementToHistory(temperatureToSave, latestLiquidLevel)
+                                latestTemperature = null
+                                latestLiquidLevel = null
+                            }
                         }
                     }
 
                     liquidChar?.uuid -> {
                         val liquid = (raw[0].toInt() and 0xFF)
+
                         runOnUiThread {
-
+                            val liquidToSave = liquid.toFloat()
                             liquidValue.value = liquid
-                            viewModel.updateLiquidLevel(liquid.toFloat())
-                            viewModel.saveLiquidLevelToFirebase(liquid.toInt())
+                            viewModel.updateLiquidLevel(liquidToSave)
+                            viewModel.saveLiquidLevelToFirebase(liquid)
+                            latestLiquidLevel = liquid.toFloat()
 
+                            if (liquid == 20) {
+                                triggerLowHydrationNotification()
+                            }
+
+                            if (latestTemperature != null) {
+                                viewModel.saveMeasurementToHistory(latestTemperature, liquidToSave)
+                                latestTemperature = null
+                                latestLiquidLevel = null
+                            }
                         }
 
-                        Log.d("BLE", " liquid = $liquid %")
-
+                        Log.d("BLE", "liquid = $liquid %")
                     }
 
-                    else -> {
-                        Log.w("BLE", "🟡 Caractéristique inconnue: ${characteristic.uuid}")
-                    }
                 }
-            }
 
+
+
+            }
             override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     Log.d("BLE", "✅ Descriptor écrit pour ${descriptor.characteristic.uuid}")
@@ -167,6 +196,7 @@ class BluetoothControlActivity: ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         gatt?.close()
+        viewModel.fetchLastFiveMeasurements()
     }
 
     @SuppressLint("MissingPermission")
@@ -228,4 +258,32 @@ class BluetoothControlActivity: ComponentActivity() {
 
 
     }
+    private fun triggerLowHydrationNotification() {
+        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "hydration_alerts"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                "Alerte Hydratation",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notifications pour rappeler de remplir la gourde."
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle("⚠️ Hydratation basse")
+            .setContentText("Remplissez votre gourde, le niveau est à 20%")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+
+        notificationManager.notify(1001, notification)
+    }
+
+
 }
+
+
