@@ -8,9 +8,8 @@ import kotlinx.coroutines.flow.StateFlow
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.firestore.SetOptions
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import android.util.Log
+import com.google.firebase.firestore.Query
 
 
 class FirebaseAuthViewModel : ViewModel() {
@@ -20,8 +19,6 @@ class FirebaseAuthViewModel : ViewModel() {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState
 
-    private val _hydrationGoal = MutableStateFlow("2.0L") // valeur par défaut
-    val hydrationGoal: StateFlow<String> = _hydrationGoal
     private val _liquidLevel = MutableStateFlow(0f)  // valeur en float 0f-1f
     val liquidLevel: StateFlow<Float> = _liquidLevel
     private val _lastTemperature = MutableStateFlow<Float?>(null)
@@ -31,52 +28,74 @@ class FirebaseAuthViewModel : ViewModel() {
 
     private val _liquidLevelHistory = MutableStateFlow<List<Float>>(emptyList())
     val liquidLevelHistory: StateFlow<List<Float>> = _liquidLevelHistory
+    private val _measurementHistory = MutableStateFlow<List<Pair<Float, Float>>>(emptyList())
+    val measurementHistory: StateFlow<List<Pair<Float, Float>>> = _measurementHistory
+    private val _pendingMeasurements = mutableListOf<Pair<Float, Float>>() // Buffer local de 5 mesures
+    private var lastSavedMeasurement: Pair<Float, Float>? = null
 
     fun saveMeasurementToHistory(temperature: Float?, liquidLevel: Float?) {
         val user = auth.currentUser
-        if (user != null) {
+        if (user != null && temperature != null && liquidLevel != null) {
+            val newMeasurement = Pair(temperature, liquidLevel)
+
+            // ✅ Bloque immédiatement les doublons même avant Firestore
+            if (newMeasurement == lastSavedMeasurement) {
+                Log.d("Firestore", "⏭️ Doublon détecté avant enregistrement : $newMeasurement")
+                return
+            }
+
+            // 🔐 On bloque les futurs doublons
+            lastSavedMeasurement = newMeasurement
+
             val db = Firebase.firestore
             val data = hashMapOf<String, Any>(
-                "timestamp" to com.google.firebase.Timestamp.now()
+                "timestamp" to com.google.firebase.Timestamp.now(),
+                "createdAtMillis" to System.currentTimeMillis(),
+                "temperature" to temperature,
+                "liquidLevel" to liquidLevel
             )
-            temperature?.let { data["temperature"] = it }
-            liquidLevel?.let { data["liquidLevel"] = it * 100 } // si c'était un ratio genre 0.2f
 
             db.collection("users")
                 .document(user.uid)
                 .collection("measurements")
                 .add(data)
+                .addOnSuccessListener {
+                    Log.d("Firestore", "✅ Nouvelle mesure enregistrée : $newMeasurement")
+                }
+                .addOnFailureListener { e ->
+                    Log.e("Firestore", "❌ Erreur d'enregistrement", e)
+                    // 🔁 Important : on annule le blocage si échec
+                    lastSavedMeasurement = null
+                }
         }
     }
-
     fun fetchLastFiveMeasurements() {
-        val user = auth.currentUser ?: return
-        val db = Firebase.firestore
-        db.collection("users").document(user.uid).collection("measurements")
-            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        Firebase.firestore.collection("users")
+            .document(userId)
+            .collection("measurements")
+            .orderBy("createdAtMillis", Query.Direction.DESCENDING)
             .limit(5)
             .get()
-            .addOnSuccessListener { snapshots ->
-                val temps = mutableListOf<Float>()
-                val liquids = mutableListOf<Float>()
-                for (doc in snapshots.documents) {
+            .addOnSuccessListener { result ->
+                val measurements = result.mapNotNull { doc ->
                     val temp = doc.getDouble("temperature")?.toFloat()
-                    val liquid = doc.getDouble("liquidLevel")?.toFloat()
-                    temp?.let { temps.add(it) }
-                    liquid?.let { liquids.add(it) }
-                    Log.d("Firebase", "Mesures récupérées: temp=$temps, liquid=$liquids")
-
+                    val level = doc.getDouble("liquidLevel")?.toFloat()
+                    if (temp != null && level != null) Pair(temp, level) else null
                 }
-                _temperatureHistory.value = temps.reversed() // ordre chronologique
-                _liquidLevelHistory.value = liquids.reversed()
-            }
-            .addOnFailureListener {
-                _temperatureHistory.value = emptyList()
-                _liquidLevelHistory.value = emptyList()
-            }
 
-
+                _measurementHistory.value = measurements
+                Log.d("Firestore", " Historique : $measurements")
+            }
+            .addOnFailureListener { e ->
+                Log.e("Firestore", "Erreur lors de la récupération", e)
+            }
     }
+
+
+
+
+
 
     // ----------------------- Température -----------------------
 

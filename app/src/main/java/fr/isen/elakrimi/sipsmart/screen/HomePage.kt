@@ -152,9 +152,9 @@ fun HomePageContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val hydrationGoal by viewModel.hydrationGoal.collectAsState()
     val montserratFontFamily = FontFamily(Font(R.font.montserrat_bold, FontWeight.W200))
     val liquidLevel by viewModel.liquidLevel.collectAsState(initial = 0f)
+    val measurements = viewModel.measurementHistory.collectAsState()
     val temperature by viewModel.lastTemperature.collectAsState()
     Column(
         modifier

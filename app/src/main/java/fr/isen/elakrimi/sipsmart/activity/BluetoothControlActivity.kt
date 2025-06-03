@@ -129,6 +129,7 @@ class BluetoothControlActivity: ComponentActivity() {
                 Log.d("BLE", "📥 Notification reçue (${raw.size} octets) : $hex")
 
                 when (characteristic.uuid) {
+
                     tmpChar?.uuid -> {
                         val tempRaw = (raw[0].toInt() shl 8) or (raw[1].toInt() and 0xFF)
                         val tempSigned = if (tempRaw and 0x8000 != 0) tempRaw - 0x10000 else tempRaw
@@ -138,16 +139,12 @@ class BluetoothControlActivity: ComponentActivity() {
                         runOnUiThread {
                             val temperatureToSave = tempInt.toFloat()
                             tmpValue.value = tempInt
+
                             viewModel.updateTemperature(tempInt)
                             viewModel.saveLastTemperatureToFirebase()
-                            latestTemperature = temperatureToSave
 
-                            // ✅ Enregistrement groupé uniquement quand les deux sont dispo
-                            if (latestLiquidLevel != null) {
-                                viewModel.saveMeasurementToHistory(temperatureToSave, latestLiquidLevel)
-                                latestTemperature = null
-                                latestLiquidLevel = null
-                            }
+                            latestTemperature = temperatureToSave
+                            trySaveMeasurement() // ✅ tentative d’enregistrement groupé température + liquide
                         }
                     }
 
@@ -155,31 +152,33 @@ class BluetoothControlActivity: ComponentActivity() {
                         val liquid = (raw[0].toInt() and 0xFF)
 
                         runOnUiThread {
-                            val liquidToSave = liquid.toFloat()
+                            val convertedLevel = when (liquid) {
+                                in 75..85 -> 1f
+                                in 15..25 -> 0.2f
+                                else -> (liquid / 100f).coerceIn(0f, 1f)
+                            }
+
                             liquidValue.value = liquid
-                            viewModel.updateLiquidLevel(liquidToSave)
+
+                            viewModel.updateLiquidLevel(convertedLevel)
                             viewModel.saveLiquidLevelToFirebase(liquid)
-                            latestLiquidLevel = liquid.toFloat()
+
+                            latestLiquidLevel = convertedLevel
 
                             if (liquid == 20) {
                                 triggerLowHydrationNotification()
                             }
 
-                            if (latestTemperature != null) {
-                                viewModel.saveMeasurementToHistory(latestTemperature, liquidToSave)
-                                latestTemperature = null
-                                latestLiquidLevel = null
-                            }
+                            trySaveMeasurement() // ✅ pareil : n’enregistre que si les deux valeurs sont prêtes
                         }
 
                         Log.d("BLE", "liquid = $liquid %")
                     }
-
                 }
-
-
-
             }
+
+
+
             override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     Log.d("BLE", "✅ Descriptor écrit pour ${descriptor.characteristic.uuid}")
@@ -282,6 +281,16 @@ class BluetoothControlActivity: ComponentActivity() {
 
         notificationManager.notify(1001, notification)
     }
+
+    private fun trySaveMeasurement() {
+        if (latestTemperature != null && latestLiquidLevel != null) {
+            viewModel.saveMeasurementToHistory(latestTemperature, latestLiquidLevel)
+            latestTemperature = null
+            latestLiquidLevel = null
+            Log.d("BLE", "✅ Enregistrement groupé effectué")
+        }
+    }
+
 
 
 }
