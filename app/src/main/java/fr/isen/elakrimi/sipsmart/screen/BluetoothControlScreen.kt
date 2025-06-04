@@ -157,68 +157,81 @@ fun BluetoothControlScreen(
                 }
 
                 if (isConnected) {
-                    // Température
-                    Card(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF98E8E)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                        shape = RoundedCornerShape(50.dp)
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        // Température
+                        Card(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                                .height(150.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF98E8E)),
+                            shape = RoundedCornerShape(30.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                         ) {
-                            Text(
-                                text = "Température",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 25.sp,
-                                color = Color(0xFFFFFFFF)
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = "$tmpValue °C",
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF3C3C3C)
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    "Température",
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "$tmpValue °C",
+                                    fontSize = 30.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.Black
+                                )
+                            }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(1.dp))
-
-                    // Niveau de liquide
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 30.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF98E8E)),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                        shape = RoundedCornerShape(50.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        // Niveau de liquide
+                        Card(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 8.dp)
+                                .height(150.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF98E8E)),
+                            shape = RoundedCornerShape(30.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                         ) {
-                            Text(
-                                text = "Niveau de liquide",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 25.sp,
-                                color = Color(0xFFFFFFFF)
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = "$liquidValue %",
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF3C3C3C)
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    "Liquide",
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    "$liquidValue %",
+                                    fontSize = 30.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.Black
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
+            }
     }
 }
 
